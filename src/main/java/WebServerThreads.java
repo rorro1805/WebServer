@@ -32,6 +32,7 @@ public class WebServerThreads {
 
         log.debug("Starting ..");
 
+        //se define el numero de Threads
         final ExecutorService executor = Executors.newFixedThreadPool(8);
 
         // Servidor en el puerto PORT

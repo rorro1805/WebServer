@@ -10,13 +10,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Date;
 
 /**
  * @author Diego Urrutia Astorga <durrutia@ucn.cl>
@@ -102,8 +103,12 @@ public class ProcessRequestRunnable implements Runnable {
         // Iterador de la peticion
         final LineIterator lineIterator = IOUtils.lineIterator(socket.getInputStream(), Charset.defaultCharset());
 
+        //Leer input, representacion del body
+        final BufferedReader read = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
         // Peticion
-        final String request = getRequest(lineIterator);
+        final String request = getRequest(read);
+
         log.debug("Request detected: {}", request);
 
         // Output
@@ -126,13 +131,13 @@ public class ProcessRequestRunnable implements Runnable {
 
         //si es por metodo post
         if(verbo.equals("POST")) {
-            log.debug("BODY: ", request3[3]);
-            //GET /chat HTTP/1.1
-            //final String body = request3[3];
+            //asignacion del body
+            final String body = request3[3];
+            //verifica version
             if (!StringUtils.equals("HTTP/1.1", version)) {
                 log.warn("Wrong version: {}", version);
             }
-            //writeChat(outputStream, verbo, uri, socket, body);
+            writeChat(outputStream, verbo, uri, socket, body);
         }
         // Deteccion de version
         if (!StringUtils.equals("HTTP/1.1", version)) {
@@ -285,6 +290,36 @@ public class ProcessRequestRunnable implements Runnable {
         }
 
         return request;
+    }
+
+    private static String getRequest(BufferedReader bufferedReader) throws IOException {
+
+        String request = null;
+        int n = 0;
+
+        String headeLine = null;
+        if(bufferedReader != null) {
+            while ((headeLine = bufferedReader.readLine()).length() != 0) {
+                log.debug("Line {}: {}", ++n, headeLine);
+
+                // Guardo la peticion de la primera linea
+                if (n == 1) {
+                    request = headeLine;
+                }
+                // Termine la peticion si llegue al final de la peticion
+                if (StringUtils.isEmpty(headeLine)) {
+                    break;
+                }
+            }
+        }
+
+        StringBuilder payload = new StringBuilder();
+        while(bufferedReader.ready()){
+            payload.append((char)bufferedReader.read());
+
+        }
+        log.debug("Payload is: {}", payload);
+        return request+" "+payload.toString();
     }
 
     /**
