@@ -16,6 +16,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Date;
 
 /**
  * @author Diego Urrutia Astorga <durrutia@ucn.cl>
@@ -123,6 +124,16 @@ public class ProcessRequestRunnable implements Runnable {
         final String uri = request3[1];
         final String version = request3[2];
 
+        //si es por metodo post
+        if(verbo.equals("POST")) {
+            log.debug("BODY: ", request3[3]);
+            //GET /chat HTTP/1.1
+            //final String body = request3[3];
+            if (!StringUtils.equals("HTTP/1.1", version)) {
+                log.warn("Wrong version: {}", version);
+            }
+            //writeChat(outputStream, verbo, uri, socket, body);
+        }
         // Deteccion de version
         if (!StringUtils.equals("HTTP/1.1", version)) {
             log.warn("Wrong version: {}", version);
@@ -157,7 +168,6 @@ public class ProcessRequestRunnable implements Runnable {
                 chats.add(msg);
             }
         }
-
         // Listado completo de chat
         final StringBuffer sb = new StringBuffer();
 
@@ -168,6 +178,44 @@ public class ProcessRequestRunnable implements Runnable {
         synchronized (chats) {
             for (String line : chats) {
                 sb.append(StringUtils.replace(chatline, "CONTENT", line));
+                sb.append("\r\n");
+            }
+        }
+
+        // Contenido completo
+        final String content = readFile("index.html");
+
+        final String contentChat = StringUtils.replace(content, "<!-- CHAT_CONTENT-->", sb.toString());
+
+        // Envio el contenido
+        IOUtils.write(contentChat + "\r\n", outputStream, Charset.defaultCharset());
+
+    }
+
+    //metodo post
+    private static void writeChat(final OutputStream outputStream, final String verbo, final String uri,final Socket socket,final String body) throws IOException {
+
+        if (StringUtils.contains(body, "msgText=")) {
+            final String msg = StringUtils.substringAfter(body, "msgText=");
+            log.debug("Msg to include: {}", msg);
+
+            // Sincronizacion
+            synchronized (chats) {
+
+                chats.add(msg);
+            }
+        }
+
+        // Listado completo de chat
+        final StringBuffer sb = new StringBuffer();
+
+        // Linea de chat
+        final String chatline = readFile("chatline.html");
+
+        // Siempre el mismo comportamiento
+        synchronized (chats) {
+            for (int i = 0;i < chats.size();i++/*String line : chats*/) {
+                sb.append(StringUtils.replace(chatline, "CONTENT", sb.toString()));
                 sb.append("\r\n");
             }
         }
